@@ -1,0 +1,14 @@
+# 旧版单文件工具：保留在本地作为回退，但不发布到 GitHub Pages
+legacy/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/
+
+# 本地依赖与临时文件（本项目无需构建步骤）
+node_modules/
+*.log

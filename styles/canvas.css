@@ -1,0 +1,343 @@
+/* ==========================================================================
+   Canvas — the menu sheet itself
+   All geometry is fed in from JS as CSS variables and typography is sized in
+   em relative to the canvas base font size, so "auto fit" only needs to
+   change the font size and gaps to rescale the whole sheet.
+   ========================================================================== */
+
+.canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* 预览缩放走 transform: scale()，必须以左上角为原点；
+     用默认的中心原点会让画布整体向右下偏移，被预览框裁掉。 */
+  transform-origin: 0 0;
+  box-sizing: border-box;
+  width: var(--w, 794px);
+  background: var(--c-bg, #f7f7f9);
+  color: var(--c-body, #374151);
+  font-family: var(--font-base);
+  font-size: 15px;                 /* overwritten by applyLayout() */
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  /* Japanese typesetting: kinsoku shori + full-width punctuation handling */
+  line-break: strict;
+  word-break: normal;
+  word-break: auto-phrase;         /* ignored where unsupported */
+  overflow-wrap: break-word;
+  -webkit-font-smoothing: antialiased;
+}
+
+.canvas.exporting .ph,
+.canvas.exporting .is-selected,
+.canvas.exporting .drop-target {
+  visibility: hidden !important;
+  outline: none !important;
+}
+
+.decor-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.canvas-stack {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--pad-t) var(--pad-r) var(--pad-b) var(--pad-l);
+}
+
+/* ---------- blocks ---------- */
+
+.block-section { flex: 0 0 auto; }
+.block-section + .block-section { margin-top: var(--section-gap); }
+
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: .6em;
+  margin: 0 0 1.1em;
+  padding-bottom: .55em;
+  border-bottom: 1px solid var(--c-card-border);
+  font-family: var(--font-display);
+  font-size: .88em;
+  color: var(--c-title);
+}
+
+.section-title .sec-en {
+  font-weight: 900;
+  letter-spacing: .24em;
+  text-transform: uppercase;
+}
+
+.section-title .sec-sub {
+  font-size: .84em;
+  font-weight: 500;
+  letter-spacing: .1em;
+  color: var(--c-muted);
+}
+
+/* ---------- header ---------- */
+
+.block-header {
+  flex: 0 0 auto;
+  background: var(--c-header-bg);
+  color: var(--c-header-text);
+  margin-top: calc(-1 * var(--pad-t));
+  margin-left: calc(-1 * var(--pad-l));
+  margin-right: calc(-1 * var(--pad-r));
+}
+
+.banner { line-height: 0; }
+.banner img {
+  display: block;
+  width: 100%;
+  /* 竖版图直接铺满会把整张品书顶下去，这里限制高度并居中裁切 */
+  max-height: 16em;
+  object-fit: cover;
+  object-position: center;
+}
+
+.header-inner { padding: 2.1em var(--pad-r) 1.7em var(--pad-l); }
+
+.header-event {
+  font-size: .8em;
+  line-height: 1.6;
+  letter-spacing: .16em;
+  font-weight: 400;
+  opacity: .78;
+  margin-bottom: .55em;
+}
+
+.header-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1em;
+}
+
+.header-circle {
+  font-family: var(--font-display);
+  font-size: 2.7em;
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -.005em;
+  font-feature-settings: "palt" 1;
+}
+
+.header-booth {
+  font-size: 1.02em;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: .06em;
+  padding: .35em .9em;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  opacity: .92;
+}
+
+/* ---------- footer ---------- */
+
+.block-footer {
+  flex: 0 0 auto;
+  margin-top: auto;
+  margin-bottom: calc(-1 * var(--pad-b));
+  margin-left: calc(-1 * var(--pad-l));
+  margin-right: calc(-1 * var(--pad-r));
+  padding: 1.35em var(--pad-r) 1.35em var(--pad-l);
+  background: var(--c-footer-bg);
+  color: var(--c-footer-text);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 1em;
+}
+
+.ft-left { font-size: .92em; font-weight: 900; letter-spacing: .08em; }
+.ft-right { font-size: .8em; letter-spacing: .04em; text-align: right; }
+
+/* ---------- grid & cards ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
+  gap: var(--gap-y) var(--gap-x);
+  /* 同一行的卡片等高，价格行才会整齐对齐 */
+  align-items: stretch;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--c-card-bg);
+  border: 1px solid var(--c-card-border);
+  border-radius: .28em;
+  overflow: hidden;
+}
+
+.cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: var(--c-card-border);
+  overflow: hidden;
+  line-height: 0;
+}
+
+.cover img { display: block; width: 100%; height: 100%; }
+
+.no-cover {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--c-bg);
+}
+
+.no-cover .ph { font-size: .7em; letter-spacing: .12em; }
+
+.badges {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: .38em .8em;
+  font-size: .68em;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.card-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: .95em 1em 1.05em;
+}
+
+.p-sub {
+  font-size: .64em;
+  font-weight: 900;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin-bottom: .3em;
+}
+
+.p-title {
+  font-family: var(--font-display);
+  font-size: 1.16em;
+  font-weight: 900;
+  line-height: 1.28;
+  letter-spacing: .005em;
+  color: var(--c-title);
+  margin: 0 0 .45em;
+  font-feature-settings: "palt" 1;
+}
+
+.p-desc {
+  font-size: .78em;
+  line-height: 1.65;
+  color: var(--c-body);
+  margin: 0 0 .9em;
+  white-space: pre-line;
+}
+
+.p-foot {
+  margin-top: auto;
+  padding-top: .7em;
+  border-top: 1px solid var(--c-card-border);
+  display: flex;
+  flex-direction: column;
+}
+
+.p-price {
+  font-family: var(--font-display);
+  font-size: 1.5em;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -.015em;
+  color: var(--c-title);
+  font-feature-settings: "palt" 1;
+}
+
+.p-price.is-free { font-size: 1.12em; letter-spacing: .04em; }
+
+.p-note {
+  font-size: .64em;
+  font-weight: 700;
+  letter-spacing: .1em;
+  color: var(--c-muted);
+  margin-top: .2em;
+}
+
+/* ---------- empty state ---------- */
+
+.empty-hint {
+  grid-column: 1 / -1;
+  padding: 2.2em 0;
+  border: 1.5px dashed var(--c-card-border);
+  border-radius: .3em;
+  text-align: center;
+  font-size: .82em;
+  letter-spacing: .1em;
+}
+
+/* ---------- structural placeholders ---------- */
+
+.ph { color: var(--c-muted); font-weight: 400; letter-spacing: .08em; }
+
+.block-header .ph,
+.block-footer .ph { color: currentColor; opacity: .45; }
+
+/* ---------- edit-time helpers (never exported) ---------- */
+
+.canvas.show-grid::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    to right,
+    rgba(75, 139, 245, .3) 0 1px,
+    transparent 1px calc((100% - var(--pad-l) - var(--pad-r) + var(--gap-x)) / var(--cols))
+  );
+}
+
+.card.is-selected,
+.block-section.is-selected,
+.block-header.is-selected,
+.block-footer.is-selected {
+  outline: 2px solid var(--info, #0095d9);
+  outline-offset: 2px;
+}
+
+.card.drop-target,
+.block-header.drop-target {
+  outline: 2px dashed var(--accent, #f08300);
+  outline-offset: 2px;
+}
+
+.canvas { flex: 0 0 auto; }
