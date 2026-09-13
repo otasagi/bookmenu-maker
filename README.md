@@ -1,178 +1,208 @@
-# 品书生成器 / 品書きメーカー
+# Book Menu Maker
 
-面向中日双语用户的**展会品书（品書き）排版工具**。填写活动信息与作品清单，实时预览，
-导出一张高清 PNG，可直接发社交平台或送印。
+A layout tool for doujin event price sheets (品書き / 品书). Enter the event details and a
+product list, preview the sheet live, and export a single high-resolution PNG suitable for
+social media or print.
 
-界面语言与内容语言互相独立：可以用中文界面做日文品书，也可以反过来。
+The interface language and the document language are independent: a Japanese sheet can be
+produced from the Chinese interface and vice versa.
 
 ---
 
-## 快速开始
+## Getting started
 
-这是一个纯静态站点，不需要构建步骤。
+This is a static site. No build step is required.
 
 ```bash
-# 本地预览（ES modules 需要经 HTTP 访问，不能直接双击 index.html）
+# Local preview (ES modules require HTTP; opening index.html directly does not work)
 npx serve .
-# 或者
+# or
 python3 -m http.server 8000
 ```
 
-然后用浏览器打开提示的地址即可。
+Open the address printed by the server.
 
-### 第一次使用
+### First use
 
-1. 在左侧「结构」里依次填写 **刊头**（活动名 / 社团名 / 摊位号）、**自贩区**、**委托区**、**页脚**。
-2. 点区块下方的「添加作品」，在右侧面板填写标题、价格、说明，并上传封面。
-3. 在右侧「外观」里挑一套主题（或手动改配色与背景装饰）；「版式」里调整画布宽度、栏数、间距。
-4. 点右上角 **导出 PNG** 得到成品图。
+1. Fill in the header under **Structure** in the left column: event name, circle name, booth number.
+2. Add products to each section, then edit title, price, description and cover image in the right panel.
+3. Select a theme under **Appearance**, or adjust the colours and background decoration manually.
+   Canvas width, column count and spacing are set under **Layout**.
+4. Select **Export PNG** in the top bar to obtain the finished image.
 
 ---
 
-## 主要功能
+## Features
 
-### 画布与版式
+### Canvas and layout
 
-画布不绑定任何纸张尺寸，宽度、高度、页边距、栏数（1–4）、行/列间距、区块间距都可调。
-高度可以设为「随内容自适应」或「锁定」；锁定后内容放不下时上方会出现溢出提示，
-点「一键适配」会自动收敛字号与间距。若已到下限仍放不下，会**完整回退**并提示手动处理，
-不会擅自破坏你的版式。
+The canvas is not tied to any paper size. Width, height, margins, column count (1–4),
+row and column spacing and section spacing are all adjustable.
 
-卡片按栏数自动排布。一排里卡片不满时（例如 2 栏放了 3 件），**最后一排会铺满整行**：
-只剩一张时会变成封面在左、文字在右的横排大卡，不会留下半张空白。想保留旧观感，
-在「版式」里关掉「最后一排铺满整行」即可；排里若有手动加宽的卡片，该排保持原样。
+Height can be set to follow the content or to a fixed value. When the height is fixed and the
+content does not fit, an overflow indicator appears above the canvas. **Auto-fit** then reduces
+the type size first and the spacing second, down to defined lower limits. If the content still
+does not fit, the operation is reverted in full and manual adjustment is requested; the layout
+is never modified without notice.
 
-### 主题（配色与装饰）
+Cards are placed according to the column count. When the last row is not full — for example
+three products in a two-column sheet — the last row expands to fill the width, and a single
+remaining card becomes a wide card with the cover on the left and the text on the right.
+This behaviour can be disabled under **Layout**. A row that contains a manually widened card
+is left unchanged.
 
-配色由一组颜色变量驱动（页面背景、卡片底/描边、主副文字、强调色、刊头与页脚）。
-内置 12 套主题，每套都带推荐的背景装饰与字体配对，点一下就是一次完整的观感切换：
+### Themes
 
-- **浅色** —— 中性（默认）、和纸、墨、樱花、薄荷、柑橘、丁香
-- **深色** —— 夜空粉紫、深夜、深林、炭、夜樱
+Colours are driven by a set of variables: page background, card background and border, heading,
+body and secondary text, accent, header background and text, footer background and text.
 
-主题里的字体配对可以关掉（「套用时同时应用推荐字体」），圆体只在日文内容下生效。
-套用后仍可逐项微调颜色、装饰与字体。调好的整套观感可以存进「我的主题」，之后一键套用；
-旧版只存了颜色的条目照旧可用。
+Twelve built-in themes are provided. Each combines a colour set, a background decoration and a
+font pairing, so that a single selection changes the complete appearance:
 
-背景装饰单独提供四种：无、星座连线、细线网格、斜线纹理，浓度与疏密可调。
+- **Light** — Neutral (default), Washi, Sumi, Sakura, Mint, Citrus, Lavender
+- **Dark** — Night Sky, Midnight, Forest, Charcoal, Night Sakura
 
-新增主题时可以跑一遍对比度校验，确保小字也读得清：
+Applying a theme can also apply its recommended font pairing; this can be disabled. Rounded
+gothic pairings apply only when the document language is Japanese, and fall back to a sans-serif
+for Chinese content.
+
+Individual colours, the background decoration and the fonts remain editable after a theme has
+been applied. The current appearance can be saved as a custom theme and applied again later;
+entries saved by earlier versions, which stored colours only, remain usable.
+
+Background decoration is also available independently of the themes: none, constellation,
+fine grid and diagonal hatching, with adjustable intensity and density.
+
+The contrast of the built-in themes can be verified:
 
 ```bash
 node tools/check-palettes.mjs
 ```
 
-### 字体
+### Fonts
 
-字体来源分三层，按需自动选择：
+Fonts are resolved from three sources, in order:
 
-1. **项目自带**（`assets/fonts/`）—— Noto Sans JP / Noto Serif JP / Noto Sans SC / Noto Serif SC，
-   许可为 SIL OFL 1.1，可随项目再分发。
-2. **系统已装字体** —— 苹方、Hiragino、Yu Gothic、宋体等按字族名引用，零下载。
-3. **本地字体文件** —— 自己选一个 `.ttf / .otf / .woff / .woff2`，存在浏览器 IndexedDB 里跨会话保留。
+1. **Bundled with the project** (`assets/fonts/`) — Noto Sans JP, Noto Serif JP, Noto Sans SC and
+   Noto Serif SC, licensed under the SIL Open Font License 1.1 and redistributable with the project.
+2. **Installed system fonts** — referenced by family name (PingFang, Hiragino, Yu Gothic, Songti and
+   others), requiring no download.
+3. **Local font files** — a `.ttf`, `.otf`, `.woff` or `.woff2` file selected by the user, stored in
+   the browser's IndexedDB and retained between sessions.
 
-日文排版已启用禁则处理（`line-break: strict`）与比例假名（`palt`）。
+Japanese typesetting enables kinsoku processing (`line-break: strict`) and proportional kana (`palt`).
 
-### 语言
+### Languages
 
-- **界面语言**：中文 / 日本語，首次打开按浏览器语言判定。
-- **内容语言**：决定画布上的占位提示、价格格式（`1,000円` ↔ `¥1,000`）与导出文件名用语（`品書` ↔ `品书`）。
-- 切换语言**不会改写**你已经写下的内容。
-- 「由日文原文转中文」是**手动**操作，仅在内容语言为简体中文时可用，且可撤销。
+- **Interface language**: Chinese or Japanese. Determined from the browser language on first run and
+  remembered afterwards.
+- **Document language**: determines the placeholders shown on the canvas, price formatting
+  (`1,000円` or `¥1,000`) and the wording used in export file names (品書 or 品书).
+- Changing either language never rewrites content that has already been entered.
+- Conversion of Japanese source text to Simplified Chinese is a manual action. It is available only
+  when the document language is Simplified Chinese, and it can be undone.
 
-### 保存与工程文件
+### Saving and project files
 
-- 内容自动保存在本机浏览器中。
-- **工程文件（.json）** 包含全部文字、图片与配色，可用于备份、换电脑或发给别人；
-  也兼容导入旧版单文件工具保存的数据。
-- 若图片过多导致浏览器存储写满，会**明确提示**并引导导出工程文件，不会静默丢弃图片。
+- Content is saved automatically in the local browser.
+- **Project files** (`.json`) contain all text, images and colours. They can be used for backup, for
+  moving to another computer or for handing the project to someone else. Data saved by the previous
+  single-file version can be imported.
+- If browser storage is exhausted, which typically happens when many images are used, the editor
+  reports the condition and prompts for a project file export instead of discarding images silently.
 
-### 导出
+### Export
 
-导出为**一张 PNG**。可按倍率（1×–4×）或按目标宽度（像素）指定尺寸，面板实时显示最终尺寸与体积估算。
+The sheet is exported as a **single PNG**. The size can be specified either by a scale factor
+(1×–4×) or by a target width in pixels, and the panel displays the resulting pixel dimensions and an
+estimated file size.
 
-「四周留白」会在成品图四边留出空白（画布 px，随倍率等比放大，颜色取页面背景色），
-发到社交平台时刊头与页脚就不会顶到图片边缘。
+An **outer margin**, given in canvas pixels, adds a blank border around the exported image. It scales
+with the export factor and is filled with the page background colour; a value of zero disables it.
+This prevents the header and footer from touching the edges when the image is posted to social media.
 
-画布很大时会**分块渲染再拼合**，目的是绕开浏览器对单张画布面积的限制 —— 你拿到的始终是一张完整长图。
-画布上的淡灰占位提示与选中框不会进入导出图；一件作品都没有的区块（例如空着的委托区）
-导出时整块略去，不会在成品里留下一个空的虚线框。导出面板显示的尺寸就是最终 PNG 的尺寸。
+Large canvases are rendered in tiles and stitched together, which avoids the per-canvas size limits
+imposed by browsers. The result is always a single image. The placeholder hints and selection
+outlines shown in the editor are not included in the export, and a section that contains no products
+is omitted entirely.
 
 ---
 
-## 快捷键
+## Keyboard shortcuts
 
-| 快捷键 | 作用 |
+| Shortcut | Action |
 | --- | --- |
-| `⌘/Ctrl + Z` | 撤销 |
-| `⌘/Ctrl + Shift + Z` | 重做 |
-| `⌘/Ctrl + S` | 导出工程文件 |
-| `⌘/Ctrl + E` | 导出 PNG |
+| `⌘/Ctrl + Z` | Undo |
+| `⌘/Ctrl + Shift + Z` | Redo |
+| `⌘/Ctrl + S` | Export project file |
+| `⌘/Ctrl + E` | Export PNG |
 
-把图片直接拖到画布上的作品卡即可设为封面；拖到刊头区域则设为 Banner。
-选中作品卡后也可以直接粘贴剪贴板里的图片。
-
----
-
-## 目录结构
-
-```
-index.html              入口
-js/                     应用模块
-  main.js               装配与事件
-  state.js              状态模型、默认值、旧存档迁移
-  store.js              本机保存、工程文件、撤销栈
-  render.js             画布渲染与占位规则
-  editor.js             左栏大纲 + 右栏面板
-  layout.js             版式变量、溢出检测、一键适配
-  theme.js              配色变量、背景装饰、主题套用、我的主题
-  palettes.js           12 套内置主题（配色 + 装饰 + 字体配对）
-  fonts.js              字体表、本地字体（IndexedDB）
-  export.js             分块渲染导出
-  image.js              图片压缩
-  convert.js            日文 → 简体中文 用词替换表
-i18n/                   中 / 日 词条
-styles/                 编辑器与画布样式
-vendor/                 本地化的 html2canvas
-assets/fonts/           项目自带字体与 fonts.css
-assets/icon.svg         站点图标（浏览器标签页 / 收藏夹）
-assets/icon-32.png      图标位图回退（旧浏览器）
-assets/icon-180.png     图标位图回退（iOS 添加到主屏幕）
-tools/fetch-fonts.mjs   重新获取字体并生成 fonts.css
-tools/check-palettes.mjs 内置主题的对比度校验（`node tools/check-palettes.mjs`）
-legacy/                 旧版单文件工具（仅作回退，不参与发布）
-```
+An image file dragged onto a card sets its cover; dropped on the header area it becomes the banner.
+With a card selected, an image can also be pasted from the clipboard.
 
 ---
 
-## 发布到 GitHub Pages
+## Project structure
 
-仓库根目录设为这个文件夹（或把本目录内容放到仓库根），然后在
-**Settings → Pages** 里选择分支与根目录即可。站点是纯静态的，无需构建。
+```
+index.html                 entry point
+js/                        application modules
+  main.js                  wiring and event handling
+  state.js                 state model, defaults, legacy migration
+  store.js                 local storage, project files, undo stack
+  render.js                canvas rendering and placeholder rules
+  editor.js                outline (left column) and inspector (right column)
+  layout.js                layout variables, overflow detection, auto-fit
+  theme.js                 colour variables, background decoration, custom themes
+  palettes.js              the twelve built-in themes
+  fonts.js                 font catalogue and local fonts (IndexedDB)
+  export.js                tiled rendering and PNG export
+  image.js                 image downscaling
+  convert.js               Japanese to Simplified Chinese term mapping
+i18n/                      Chinese and Japanese string tables
+styles/                    editor and canvas stylesheets
+vendor/                    bundled html2canvas
+assets/fonts/              bundled fonts and fonts.css
+assets/icon.svg            site icon (browser tab and bookmarks)
+assets/icon-32.png         bitmap icon fallback
+assets/icon-180.png        bitmap icon fallback (iOS home screen)
+tools/fetch-fonts.mjs      fetch fonts and regenerate fonts.css
+tools/check-palettes.mjs   contrast check for the built-in themes
+legacy/                    previous single-file version (fallback only, excluded from releases)
+```
 
-`legacy/` 已在 `.gitignore` 中排除，旧版工具不会被发布出去。
+---
 
-### 重新获取字体
+## Deployment
+
+The site is entirely static and uses only relative paths, so it can be published from a repository
+subpath without further configuration. See [DEPLOY.md](DEPLOY.md) for the available options,
+including the GitHub Pages requirements and the cache-busting version check used by the editor.
+
+### Regenerating fonts
 
 ```bash
 node tools/fetch-fonts.mjs
 ```
 
-脚本会跳过已存在的文件，只补齐缺失的部分，并重新生成 `assets/fonts/fonts.css`。
+The script skips files that already exist, retrieves only the missing ones, and regenerates
+`assets/fonts/fonts.css`.
 
 ---
 
-## 关于默认值
+## Defaults
 
-新建项目**不包含任何具体作品信息** —— 作品名、社团名、摊位号、活动日期、场地、网址、版权
-一律留空，只显示中性的结构占位提示。这些提示只在编辑器里可见，不会出现在导出的图片中。
+A new project contains no sample content. Product names, circle name, booth number, event dates,
+venue, URLs and copyright lines are all empty and display neutral structural placeholders. These
+placeholders are visible only in the editor and are not included in the exported image.
 
 ---
 
-## 字体许可
+## Licensing
 
-项目自带的 Noto Sans JP / Noto Serif JP / Noto Sans SC / Noto Serif SC 采用
-**SIL Open Font License 1.1**，允许随项目一同分发。
+The bundled Noto Sans JP, Noto Serif JP, Noto Sans SC and Noto Serif SC fonts are licensed under the
+**SIL Open Font License 1.1**, which permits redistribution with the project. The bundled
+html2canvas library is licensed under the MIT License.
 
-系统字体（苹方、Hiragino、Yu Gothic 等）与用户自行载入的字体文件不随项目分发，
-仅在各自机器上使用。
+System fonts (PingFang, Hiragino, Yu Gothic and others) and fonts loaded by the user are not
+distributed with the project and are used only on the machine where they are installed.
