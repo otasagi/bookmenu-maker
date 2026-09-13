@@ -5,6 +5,10 @@
 :root {
   --ui-font: 'Noto Sans SC', 'PingFang SC', system-ui, sans-serif;
 
+  /* 样式与脚本的版本号：两边一致才说明浏览器没有把旧文件留在缓存里。
+     改版时和 js/main.js 的 BUILD 一起加一（详见 main.js 的 checkBuild）。 */
+  --app-build: 6;
+
   /* 配色取自 M3 官网：浅灰底 + 白面板 + 1px 细线 + 直角，
      橙色是主操作色，玫红用于链接类文字，蓝色只用于聚焦与信息值。 */
   --ink: #333333;
@@ -69,16 +73,13 @@ body {
 
 .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
-.brand-mark {
-  width: 30px; height: 30px;
-  display: grid; place-items: center;
-  background: var(--accent);
-  border-radius: 6px;
-  font-weight: 900;
-  font-size: 15px;
-  color: #fff;
-  flex: none;
-}
+/* 左上角标记：白纸 + 三块「品」字结构，上方块取主色。
+   用内联 SVG 而不是字体里的「品」，小尺寸下更整齐，也能直接当站点图标。
+   方块比界面正文用的 --ink 再深一档，免得压在深色顶栏上被吃掉。 */
+.brand-mark { width: 28px; height: 28px; display: block; flex: none; }
+.brand-mark .mark-paper { fill: #ffffff; }
+.brand-mark .mark-top { fill: var(--accent); }
+.brand-mark .mark-item { fill: #262626; }
 
 .brand-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .brand-title { font-size: 13px; font-weight: 700; white-space: nowrap; }
@@ -314,7 +315,9 @@ body {
   position: relative;
   overflow: hidden;
   margin: 0 auto;
-  background: #fff;
+  /* 取景框本身不上色：它是导出的渲染对象，一旦漏出底色就会在成品图里留下白边
+     （预览时画布正好铺满它，透明也看不出来）。 */
+  background: transparent;
   box-shadow: 0 8px 30px rgba(31, 36, 48, .16);
 }
 
@@ -634,15 +637,6 @@ input[type="color"] {
   border-bottom: 3px solid var(--accent);
 }
 
-.brand-mark {
-  width: 28px;
-  height: 28px;
-  border-radius: 0;
-  background: #fff;
-  color: var(--topbar-bg);
-  box-shadow: inset 0 -4px 0 var(--accent);
-}
-
 .brand-title { font-size: 13.5px; font-weight: 700; }
 .brand-sub { color: var(--topbar-mute); }
 
@@ -854,6 +848,13 @@ textarea:focus {
   box-shadow: 0 1px 3px rgba(0, 0, 0, .10);
 }
 
+/* 导出时裁剪窗口只是取景框：白底与投影都不能进成品图 */
+.stage.exporting {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .busy { background: rgba(51, 51, 51, .55); }
 
 /* ---------- 提示条与对话框 ---------- */
@@ -985,3 +986,62 @@ input[type="file"]::-webkit-file-upload-button:hover {
 /* ---------- 进度框也带一条橙色顶边 ---------- */
 
 .busy-box { border-top: 4px solid var(--accent); }
+
+/* ---------- 主题色卡 ---------- */
+
+.swatch-group {
+  margin: 12px 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  color: var(--ink-mute);
+}
+
+.swatch-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.swatch:hover { border-color: var(--accent); }
+.swatch.is-active {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* 小预览：刊头条 + 两张卡片 + 页脚条 */
+.swatch-art {
+  display: block;
+  width: 100%;
+  height: 48px;
+  overflow: hidden;
+}
+.swatch-band { display: flex; align-items: center; height: 12px; padding: 0 4px; }
+.swatch-band-ink { display: block; width: 44%; height: 3px; opacity: .85; }
+.swatch-body { display: flex; gap: 4px; padding: 4px; }
+.swatch-card {
+  flex: 1 1 0;
+  height: 22px;
+  border: 1px solid;
+  display: flex;
+  align-items: flex-end;
+  padding: 3px;
+}
+.swatch-line { display: block; width: 58%; height: 3px; }
+.swatch-foot { display: block; height: 6px; }
+
+.swatch-name { font-size: 11px; line-height: 1.2; }
+.swatch.is-active .swatch-name { font-weight: 700; color: var(--accent-deep); }

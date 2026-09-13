@@ -8,12 +8,13 @@
  */
 import { t, td } from './i18n.js';
 import {
-  PALETTE_KEYS, NEUTRAL_PALETTE, SKY_PALETTE, DEFAULT_LAYOUT,
+  PALETTE_KEYS, DEFAULT_LAYOUT,
   COVER_RATIOS, COVER_FITS, DECOR_TYPES,
-  LAYOUT_LIMITS, scaleLayoutSizes, applyDesignScale,
+  LAYOUT_LIMITS, scaleLayoutSizes, applyDesignScale, EXPORT_PADDING_MAX,
 } from './state.js';
 import { FONT_OPTIONS, fontLabel } from './fonts.js';
-import { listPalettes, savePalette, deletePalette, applyPaletteColors } from './theme.js';
+import { listPalettes, savePalette, deletePalette, applyThemePack } from './theme.js';
+import { THEME_PRESETS, LIGHT_PRESET_IDS, DARK_PRESET_IDS } from './palettes.js';
 import { exportPlan, exportFileName } from './export.js';
 
 /* ---------------- DOM 小工具 ---------------- */
@@ -419,6 +420,10 @@ function panelLayout(app) {
     field(t('layout.sectionGap'), numberInput(L.sectionGap, v => app.commit(s => {
       s.layout.sectionGap = Math.max(secLim[0], Math.min(secLim[1], v));
     }, { inspector: false }), { min: secLim[0], max: secLim[1] })),
+    checkbox(t('layout.lastRowFill'), L.lastRowFill !== false, v => app.commit(s => {
+      s.layout.lastRowFill = v;
+    }, { inspector: false })),
+    el('p', 'fld-hint', t('layout.lastRowFillHint')),
     // 已经有内容、但宽度是后改的旧项目：一键按当前宽度把字号与间距重新等比适配
     el('p', 'fld-hint', t('layout.refitHint')),
     button(t('layout.refitBtn'), () => app.commit(s => {
@@ -431,17 +436,74 @@ function panelLayout(app) {
   return out;
 }
 
+/* ---------------- 主题色卡 ---------------- */
+
+/** 「套用时同时应用推荐字体」开关：仅本次会话有效，不写进工程文件 */
+let packFontsOn = true;
+
+/** 色卡小预览：刊头条 + 页面底色 + 两张卡片 + 页脚条 */
+function swatchArt(colors) {
+  const art = el('span', 'swatch-art');
+  art.style.background = colors.bg;
+  const band = el('span', 'swatch-band');
+  band.style.background = colors.headerBg;
+  const bandInk = el('span', 'swatch-band-ink');
+  bandInk.style.background = colors.headerText;
+  band.appendChild(bandInk);
+  const body = el('span', 'swatch-body');
+  for (let i = 0; i < 2; i++) {
+    const card = el('span', 'swatch-card');
+    card.style.background = colors.cardBg;
+    card.style.borderColor = colors.cardBorder;
+    const line = el('span', 'swatch-line');
+    line.style.background = i ? colors.title : colors.accent;
+    card.appendChild(line);
+    body.appendChild(card);
+  }
+  const foot = el('span', 'swatch-foot');
+  foot.style.background = colors.footerBg;
+  art.append(band, body, foot);
+  return art;
+}
+
+/** 当前配色是否与某个主题完全一致（完全一致才高亮，改过颜色就自然不高亮） */
+function isPresetActive(state, pack) {
+  return PALETTE_KEYS.every(k => String(state.theme[k]).toLowerCase() === String(pack.colors[k]).toLowerCase());
+}
+
+function swatchGrid(app, ids) {
+  const state = app.state;
+  const grid = el('div', 'swatch-grid');
+  ids.forEach(id => {
+    const pack = THEME_PRESETS.find(p => p.id === id);
+    if (!pack) return;
+    const active = isPresetActive(state, pack);
+    const tile = el('button', 'swatch' + (active ? ' is-active' : ''));
+    tile.type = 'button';
+    tile.setAttribute('aria-pressed', active ? 'true' : 'false');
+    tile.appendChild(swatchArt(pack.colors));
+    tile.appendChild(el('span', 'swatch-name', t(pack.nameKey)));
+    tile.addEventListener('click', () => {
+      app.commit(s => { applyThemePack(s, pack, { fonts: packFontsOn }); }, { inspector: true });
+      app.toast(t('toast.themeApplied', { name: t(pack.nameKey) }));
+    });
+    grid.appendChild(tile);
+  });
+  return grid;
+}
+
 function panelTheme(app) {
   const state = app.state;
   const out = [];
-  const presets = el('div', 'chips');
-  presets.appendChild(button(t('theme.presetNeutral'), () => app.commit(s => {
-    applyPaletteColors(s, NEUTRAL_PALETTE);
-  }), 'chip'));
-  presets.appendChild(button(t('theme.presetSky'), () => app.commit(s => {
-    applyPaletteColors(s, SKY_PALETTE);
-  }), 'chip'));
-  out.push(group('theme.presets', [presets, el('p', 'fld-hint', t('theme.presetHint'))]));
+  out.push(group('theme.presets', [
+    checkbox(t('theme.applyFonts'), packFontsOn, v => { packFontsOn = v; }),
+    el('p', 'fld-hint', t('theme.applyFontsHint')),
+    el('p', 'swatch-group', t('theme.groupLight')),
+    swatchGrid(app, LIGHT_PRESET_IDS),
+    el('p', 'swatch-group', t('theme.groupDark')),
+    swatchGrid(app, DARK_PRESET_IDS),
+    el('p', 'fld-hint', t('theme.presetHint')),
+  ]));
 
   const colors = PALETTE_KEYS.map(key => hexField(colorLabelKey(key), state.theme[key], v => {
     app.commit(s => { s.theme[key] = v; }, { inspector: false });
@@ -472,7 +534,7 @@ function panelTheme(app) {
     const rowEl = el('div', 'palette-row');
     rowEl.appendChild(el('span', 'palette-name', p.name || '—'));
     rowEl.appendChild(button(t('theme.apply'), () => {
-      app.commit(s => { applyPaletteColors(s, p.colors); });
+      app.commit(s => { applyThemePack(s, p, { fonts: packFontsOn }); }, { inspector: true });
       app.toast(t('toast.paletteApplied', { name: p.name }));
     }, 'mini'));
     rowEl.appendChild(button(t('theme.delete'), () => {
@@ -488,7 +550,7 @@ function panelTheme(app) {
     row(nameInput, button(t('theme.saveCurrent'), () => {
       const name = nameInput.value.trim();
       if (!name) { app.toast(t('toast.paletteNeedName')); return; }
-      savePalette(name, app.state.theme);
+      savePalette(name, app.state);
       nameInput.value = '';
       app.toast(t('toast.paletteSaved', { name }));
       app.renderInspector();
@@ -582,6 +644,10 @@ function panelExport(app) {
       s.export.prefix = v;
     }, { inspector: false }), td('doc.fileLabel')),
       t('export.prefixHint')),
+    field(t('export.padding'), numberInput(state.export.padding || 0, v => app.commit(s => {
+      s.export.padding = Math.max(0, Math.min(EXPORT_PADDING_MAX, Math.round(v)));
+    }, { inspector: false }), { min: 0, max: EXPORT_PADDING_MAX, step: 4 }),
+      t('export.paddingHint')),
   ];
   out.push(group('export.title', items));
 

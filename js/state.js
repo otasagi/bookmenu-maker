@@ -59,7 +59,13 @@ export const DEFAULT_LAYOUT = {
   // 改画布宽度时，字号 / 页边距 / 间距是否跟着等比缩放。
   // 默认开：切到「印刷宽 2480」时整套版式一起放大，成品观感与 A4 一致，只是像素更高。
   scaleWithWidth: true,
+  // 最后一排卡片不满时是否铺满整行（只剩一张时改成封面在左的横排大卡）。
+  // 默认开：2 栏排 3 件时不会留下半张空白。
+  lastRowFill: true,
 };
+
+/** 导出四周留白的上限（画布 CSS 像素） */
+export const EXPORT_PADDING_MAX = 400;
 
 /** 版式各项的取值范围（宽度放大到印刷尺寸时，字号与间距也要有足够上限） */
 export const LAYOUT_LIMITS = {
@@ -181,7 +187,7 @@ export function createDefaultState(docLang) {
       newSection('cons', 'CONSIGNMENT', 'doc.sectionConsSub'),
     ],
     footer: { left: '', right: '© {year} {circle}' },
-    export: { mode: 'scale', scale: 3, targetWidth: 2480, prefix: '' },
+    export: { mode: 'scale', scale: 3, targetWidth: 2480, prefix: '', padding: 0 },
   };
 }
 
@@ -229,6 +235,7 @@ export function normalize(input) {
   layout.sectionGap = num(layout.sectionGap, base.layout.sectionGap, ...LAYOUT_LIMITS.sectionGap);
   layout.baseSize = num(layout.baseSize, base.layout.baseSize, ...LAYOUT_LIMITS.baseSize);
   layout.scaleWithWidth = layout.scaleWithWidth !== false;
+  layout.lastRowFill = layout.lastRowFill !== false;
   // 等比缩放会带出 46.85138… 这类长小数，面板里读不下去，统一收敛到合理精度
   layout.width = Math.round(layout.width);
   if (layout.height !== 'auto') layout.height = Math.round(layout.height);
@@ -258,6 +265,8 @@ export function normalize(input) {
   exportCfg.scale = num(exportCfg.scale, 3, 1, 6);
   exportCfg.targetWidth = num(exportCfg.targetWidth, 2480, 200, 20000);
   exportCfg.prefix = typeof exportCfg.prefix === 'string' ? exportCfg.prefix : '';
+  exportCfg.padding = Math.round(num(exportCfg.padding, 0, 0, EXPORT_PADDING_MAX));
+  if (!exportCfg.padding) exportCfg.padding = 0;
 
   const header = Object.assign({}, base.header, raw.header || {});
   const footer = Object.assign({}, base.footer, raw.footer || {});

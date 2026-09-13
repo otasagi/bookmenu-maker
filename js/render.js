@@ -121,12 +121,70 @@ function renderSection(state, section, block) {
     ? '<h2 class="section-title">' + titleParts.join('') + '</h2>'
     : '';
 
-  const cards = (section.items || []).map(item => renderCard(state, item)).join('');
-  const body = cards || ('<div class="empty-hint">' + ph(td('doc.ph.items')) + '</div>');
+  const items = section.items || [];
+  const rows = layoutRows(state, items);
+  // 每一排自己是一个网格容器：最后一排不满时只需把这一排的列数改成卡片张数，
+  // 卡片本身仍然只声明「跨几栏」——这样即使样式与脚本版本对不上，
+  // 最坏也只是回到「留着缺口」的老样子，不会把整张画布排坏。
+  const body = rows.length
+    ? rows.map(row => '<div class="grid"' + rowStyle(row) + '>' +
+        row.cells.map(cell => renderCard(state, cell)).join('') + '</div>').join('')
+    : '<div class="grid"><div class="empty-hint">' + ph(td('doc.ph.items')) + '</div></div>';
 
-  return '<section class="block block-section" data-block-id="' + escapeHtml(block.id) +
-    '" data-section-id="' + escapeHtml(section.id) + '">' + title +
-    '<div class="grid">' + body + '</div></section>';
+  // is-empty：编辑器里保留虚线提示框，导出时整块略去（见 canvas.css 的 .exporting 规则）
+  return '<section class="block block-section' + (items.length ? '' : ' is-empty') +
+    '" data-block-id="' + escapeHtml(block.id) +
+    '" data-section-id="' + escapeHtml(section.id) + '">' + title + body + '</section>';
+}
+
+/* ---------------- 卡片排布 ---------------- */
+
+/** 只有「铺满的最后一排」需要改列数，其他排用画布本身的栏数 */
+function rowStyle(row) {
+  return row.cols ? ' style="--row-cols:' + row.cols + '"' : '';
+}
+
+/** 按卡片宽度分行（与 CSS 网格的自动排布规则一致） */
+function packRows(items, cols) {
+  const rows = [];
+  let row = [];
+  let used = 0;
+  items.forEach((item, index) => {
+    const span = Math.max(1, Math.min(Number(item.span) || 1, cols));
+    if (row.length && used + span > cols) {
+      rows.push({ cells: row, used });
+      row = [];
+      used = 0;
+    }
+    row.push({ item, index, span });
+    used += span;
+  });
+  if (row.length) rows.push({ cells: row, used });
+  return rows;
+}
+
+/**
+ * 分成若干排，并算出每张卡的栏宽。
+ * 最后一排不满、且这一排的卡片都是 1 栏宽时铺满整行：
+ * 剩 1 张 → 满宽横排大卡；剩 2 / 3 张 → 平分整行。
+ * 排里出现手动加宽的卡片时保持原样，避免破坏用户设定。
+ */
+function layoutRows(state, items) {
+  const cols = Math.max(1, Number(state.layout.columns) || 1);
+  const fill = state.layout.lastRowFill !== false;
+  const rows = packRows(items, cols);
+  return rows.map((row, ri) => {
+    const stretch = fill && ri === rows.length - 1 && cols > 1 && row.used < cols &&
+      row.cells.every(cell => cell.span === 1);
+    if (!stretch) {
+      return { cols: 0, cells: row.cells.map(cell => ({ item: cell.item, span: cell.span, wide: false })) };
+    }
+    const count = row.cells.length;
+    return {
+      cols: count,
+      cells: row.cells.map(cell => ({ item: cell.item, span: 1, wide: count === 1 })),
+    };
+  });
 }
 
 function isItemBlank(item) {
@@ -134,7 +192,8 @@ function isItemBlank(item) {
     !item.badges && !item.note && !item.cover;
 }
 
-function renderCard(state, item) {
+function renderCard(state, cell) {
+  const item = cell.item;
   const blank = isItemBlank(item);
   const ratio = item.coverRatio === 'auto' ? 'auto' : item.coverRatio.replace(':', ' / ');
   const fit = item.coverFit === 'contain' ? 'contain' : 'cover';
@@ -169,14 +228,18 @@ function renderCard(state, item) {
     if (price.text) footParts.push('<div class="p-price' + (price.free ? ' is-free' : '') + '">' +
       escapeHtml(price.text) + '</div>');
     if (item.note) footParts.push('<div class="p-note">' + escapeHtml(item.note) + '</div>');
+    // 价格行与备注行都占位：同一排里有没有备注，分隔线与价格基线都对齐
+    if (footParts.length) {
+      if (!price.text) footParts.unshift('<div class="p-price"></div>');
+      if (!item.note) footParts.push('<div class="p-note"></div>');
+    }
     if (footParts.length) lines.push('<div class="p-foot">' + footParts.join('') + '</div>');
   }
 
-  // 占用栏数不能超过画布栏数：否则 CSS 网格会凭空多出一列，把卡片顶出画布
-  const cols = Math.max(1, Number(state.layout.columns) || 1);
-  const span = Math.max(1, Math.min(Number(item.span) || 1, cols));
-  return '<article class="card" data-item-id="' + escapeHtml(item.id) + '" ' +
-    'style="grid-column:span ' + span + '">' + cover +
+  // 栏宽由 layoutRows 算好（夹在画布栏数以内），这里只写跨几栏
+  return '<article class="card' + (cell.wide ? ' card-wide' : '') + '" data-item-id="' +
+    escapeHtml(item.id) + '" ' +
+    'style="grid-column:span ' + cell.span + '">' + cover +
     '<div class="card-body">' + lines.join('') + '</div></article>';
 }
 

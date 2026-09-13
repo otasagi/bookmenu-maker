@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 28 28" width="28" height="28" role="img"
+     aria-label="品书生成器">
+  <rect width="28" height="28" fill="#ffffff"/>
+  <rect x="9" y="3" width="10" height="10" fill="#f08300"/>
+  <rect x="3" y="15" width="10" height="10" fill="#262626"/>
+  <rect x="15" y="15" width="10" height="10" fill="#262626"/>
+</svg>

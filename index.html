@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>品书生成器 / 品書きメーカー</title>
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="alternate icon" href="assets/icon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 <link rel="stylesheet" href="styles/canvas.css">
 <link rel="stylesheet" href="styles/app.css">
@@ -14,7 +17,14 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand-mark">品</span>
+      <!-- 标记：白纸上一组「品」字结构的方块（三张叠放的卡片），上方块用主色 -->
+      <svg class="brand-mark" viewBox="0 0 28 28" width="28" height="28"
+           aria-hidden="true" focusable="false">
+        <rect class="mark-paper" width="28" height="28"></rect>
+        <rect class="mark-top" x="9" y="3" width="10" height="10"></rect>
+        <rect class="mark-item" x="3" y="15" width="10" height="10"></rect>
+        <rect class="mark-item" x="15" y="15" width="10" height="10"></rect>
+      </svg>
       <div class="brand-text">
         <span class="brand-title" data-i18n="app.title"></span>
         <span class="brand-sub" data-i18n="app.subtitle"></span>

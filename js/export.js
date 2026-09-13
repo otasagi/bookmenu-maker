@@ -18,21 +18,43 @@ const TOTAL_MAX_AREA = 140000000;
 const MAX_DIM = 16384;
 
 export function exportPlan(state, canvasEl) {
-  const size = naturalSize(canvasEl);
+  const size = measureForExport(canvasEl);
   const cssW = Math.max(1, size.w);
   const cssH = Math.max(1, size.h);
+  const pad = Math.max(0, Number(state.export.padding) || 0);
   let scale;
   if (state.export.mode === 'width') {
-    scale = Number(state.export.targetWidth) / cssW;
+    scale = Number(state.export.targetWidth) / (cssW + pad * 2);
   } else {
     scale = Number(state.export.scale) || 3;
   }
   scale = Math.max(0.1, Math.min(8, scale));
-  const outW = Math.round(cssW * scale);
-  const outH = Math.round(cssH * scale);
+  const outW = Math.round((cssW + pad * 2) * scale);
+  const outH = Math.round((cssH + pad * 2) * scale);
   const tooBig = outW * outH > TOTAL_MAX_AREA || outW > MAX_DIM || outH > MAX_DIM;
   const tiled = outW * outH > TILE_MAX_AREA;
-  return { cssW, cssH, scale, outW, outH, tiled, tooBig };
+  return { cssW, cssH, pad, scale, outW, outH, tiled, tooBig };
+}
+
+/**
+ * 按「导出态」量画布尺寸：空区块整块略去、占位隐藏后再量，
+ * 面板里预报的尺寸就和真正导出的 PNG 一致。
+ * 只在这一帧内加一次类，浏览器不会画出中间状态。
+ */
+function measureForExport(canvasEl) {
+  const had = canvasEl.classList.contains('exporting');
+  if (!had) canvasEl.classList.add('exporting');
+  const size = naturalSize(canvasEl);
+  if (!had) canvasEl.classList.remove('exporting');
+  return size;
+}
+
+/** 等布局落定后再量：隐藏空区块、换字体都可能改变画布高度 */
+function nextFrame() {
+  return new Promise(resolve => {
+    if (typeof requestAnimationFrame !== 'function') { resolve(); return; }
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  });
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
@@ -90,15 +112,19 @@ function renderStage(stageEl, pxScale) {
  */
 export async function exportPng(state, els, hooks) {
   const opts = hooks || {};
+  await ensureFontsLoaded(state);
+  // 先切到导出态再量：空区块会整块去掉，尺寸才不会多算
+  setPlaceholdersHidden(els.canvas, true);
+  await nextFrame();
   const plan = exportPlan(state, els.canvas);
   if (plan.tooBig) {
     throw new Error('输出尺寸过大（' + plan.outW + '×' + plan.outH + '），请降低倍率或目标宽度');
   }
 
-  await ensureFontsLoaded(state);
-  setPlaceholdersHidden(els.canvas, true);
   // 装饰按导出倍率重绘，细线在高倍率下依然锐利
   drawDecor(els.decor, state.theme, plan.cssW, plan.cssH, plan.scale);
+  // 裁剪窗口只负责限高，它自己的白底与投影不该进成品图
+  els.stage.classList.add('exporting');
 
   try {
     const out = document.createElement('canvas');
@@ -107,6 +133,8 @@ export async function exportPng(state, els, hooks) {
     const ctx = out.getContext('2d');
     ctx.fillStyle = state.theme.bg;
     ctx.fillRect(0, 0, plan.outW, plan.outH);
+    // 四周留白：成品整体内缩，留白用页面背景色
+    const offset = Math.round(plan.pad * plan.scale);
 
     // 一次渲染能装下就直接渲染，装不下才分块。
     // 分块高度按"渲染后的像素面积"来算，而不是 CSS 高度。
@@ -120,7 +148,7 @@ export async function exportPng(state, els, hooks) {
       const h = Math.min(tileCssH, plan.cssH - y);
       setExportWindow(els.stage, els.canvas, y, h);
       const piece = await renderStage(els.stage, pxScale);
-      ctx.drawImage(piece, 0, Math.round(y * pxScale));
+      ctx.drawImage(piece, offset, offset + Math.round(y * pxScale));
       drawn += h;
       if (opts.onProgress) opts.onProgress(Math.min(1, drawn / plan.cssH));
     }
@@ -132,6 +160,7 @@ export async function exportPng(state, els, hooks) {
     downloadBlob(blob, name);
     return { name, outW: plan.outW, outH: plan.outH, bytes: blob.size };
   } finally {
+    els.stage.classList.remove('exporting');
     setPlaceholdersHidden(els.canvas, false);
     drawDecor(els.decor, state.theme, plan.cssW, plan.cssH, 2);
   }

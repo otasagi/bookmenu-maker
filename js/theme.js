@@ -5,6 +5,7 @@
  * 细线不会因为放大而发虚。
  */
 import { PALETTE_KEYS } from './state.js';
+import { resolvePackFonts } from './palettes.js';
 
 const CSS_VAR = {
   bg: '--c-bg',
@@ -191,7 +192,13 @@ function writePalettes(list) {
   }
 }
 
-export function savePalette(name, theme) {
+/**
+ * 把当前观感存成「我的主题」。
+ * 传整个 state：颜色在 state.theme，字体在 state.fonts，两者都存下来才算完整一套。
+ */
+export function savePalette(name, state) {
+  const theme = (state && state.theme) || {};
+  const fonts = (state && state.fonts) || {};
   const colors = {};
   PALETTE_KEYS.forEach(k => { colors[k] = theme[k]; });
   const list = listPalettes();
@@ -199,6 +206,16 @@ export function savePalette(name, theme) {
     id: 'pal-' + Date.now().toString(36),
     name: String(name || '').slice(0, 40),
     colors,
+    // 背景装饰与字体一起存下来，「我的主题」才有完整的观感
+    decor: {
+      type: theme.decor && theme.decor.type ? theme.decor.type : 'none',
+      opacity: Number(theme.decor && theme.decor.opacity),
+      density: Number(theme.decor && theme.decor.density),
+    },
+    fonts: {
+      base: fonts.base || '',
+      display: fonts.display || '',
+    },
   };
   list.push(entry);
   writePalettes(list.slice(-30));
@@ -215,4 +232,35 @@ export function applyPaletteColors(state, colors) {
   PALETTE_KEYS.forEach(k => {
     if (typeof colors[k] === 'string') state.theme[k] = colors[k];
   });
+}
+
+/**
+ * 套用一套主题包（内置主题或「我的主题」）。
+ *
+ * pack 形状：{ colors, decor?, fonts? }
+ * - colors：11 个颜色键，缺项保持原值
+ * - decor ：写进 state.theme.decor（旧存档里保存的配色可能没有这一段）
+ * - fonts ：opts.fonts === false 时不套用；内置主题给的是「角色」，
+ *           这里按内容语言解析成具体字体键；「我的主题」存的已是字体键。
+ */
+export function applyThemePack(state, pack, opts) {
+  if (!pack) return;
+  const o = opts || {};
+  if (pack.colors) applyPaletteColors(state, pack.colors);
+
+  if (pack.decor) {
+    const decor = state.theme.decor || {};
+    if (typeof pack.decor.type === 'string') decor.type = pack.decor.type;
+    if (isFinite(pack.decor.opacity)) decor.opacity = Math.max(0, Math.min(1, Number(pack.decor.opacity)));
+    if (isFinite(pack.decor.density)) decor.density = Math.max(0.5, Math.min(3, Number(pack.decor.density)));
+    state.theme.decor = decor;
+  }
+
+  if (o.fonts !== false && pack.fonts) {
+    const isRole = ['sans', 'serif', 'maru'].includes(pack.fonts.base) ||
+      ['sans', 'serif', 'maru'].includes(pack.fonts.display);
+    const resolved = isRole ? resolvePackFonts(pack, state.docLang) : pack.fonts;
+    if (resolved.base) state.fonts.base = resolved.base;
+    if (resolved.display) state.fonts.display = resolved.display;
+  }
 }

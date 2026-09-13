@@ -169,11 +169,16 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(var(--cols, 2), minmax(0, 1fr));
-  gap: var(--gap-y) var(--gap-x);
+  /* 每一排一个网格容器：默认按画布栏数，最后一排铺满时由行内 --row-cols 改成卡片张数。
+     卡片始终只声明「跨几栏」，与旧版写法一致 —— 样式与脚本版本对不上时
+     最多退回「最后一排留缺口」，不会把整张画布排坏。 */
+  grid-template-columns: repeat(var(--row-cols, var(--cols, 2)), minmax(0, 1fr));
+  gap: 0 var(--gap-x);
   /* 同一行的卡片等高，价格行才会整齐对齐 */
   align-items: stretch;
 }
+
+.grid + .grid { margin-top: var(--gap-y); }
 
 .card {
   display: flex;
@@ -195,6 +200,25 @@
 }
 
 .cover img { display: block; width: 100%; height: 100%; }
+
+/* 整排只剩一张时：封面在左、文字在右的横排大卡 */
+.card-wide {
+  flex-direction: row;
+  align-items: flex-start;
+}
+.card-wide .cover {
+  width: 42%;
+  flex: none;
+  /* 保留封面比例（由行内 aspect-ratio 决定），文字高过封面时也不拉伸图片 */
+  align-self: flex-start;
+}
+.card-wide .card-body {
+  align-self: stretch;
+  /* 横排大卡单独占一排，文字整块居中比「贴着顶、价格吊在底」更紧凑 */
+  justify-content: center;
+  padding: 1.3em 1.5em 1.45em;
+}
+.card-wide .p-foot { margin-top: 0; }
 
 .no-cover {
   height: 100%;
@@ -272,6 +296,12 @@
   flex-direction: column;
 }
 
+/* 页脚固定两行：价格行与备注行都预留高度，
+   同一排里有的卡带备注、有的不带时，分隔线与价格基线才会对齐。
+   行高写死成 1.45，空备注的行盒才和有字的行盒一样高。 */
+.p-foot .p-price { min-height: 1.65em; display: flex; align-items: flex-end; }
+.p-foot .p-note { line-height: 1.45; min-height: 1.45em; }
+
 .p-price {
   font-family: var(--font-display);
   font-size: 1.5em;
@@ -319,11 +349,16 @@
   inset: 0;
   z-index: 3;
   pointer-events: none;
+  /* 一条竖线 = 一栏 + 一个间距；起点挪到第一条栏间距的中线，
+     线才落在栏与栏之间的缝里，而不是从画布左边缘起算。
+     用 --w 而不是 100%：百分比混进 background-position 的 calc 会整条失效。 */
+  --col-pitch: calc((var(--w) - var(--pad-l) - var(--pad-r) + var(--gap-x)) / var(--cols));
   background-image: repeating-linear-gradient(
     to right,
     rgba(75, 139, 245, .3) 0 1px,
-    transparent 1px calc((100% - var(--pad-l) - var(--pad-r) + var(--gap-x)) / var(--cols))
+    transparent 1px var(--col-pitch)
   );
+  background-position: calc(var(--pad-l) + var(--col-pitch) - var(--gap-x) / 2) 0;
 }
 
 .card.is-selected,
@@ -341,3 +376,7 @@
 }
 
 .canvas { flex: 0 0 auto; }
+
+/* 导出时整块略去没有作品的区块：提示文字会被隐藏，但虚线框还在，
+   留着会在成品图里变成一个没有内容的空框。 */
+.canvas.exporting .block-section.is-empty { display: none; }

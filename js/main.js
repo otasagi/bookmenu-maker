@@ -534,11 +534,29 @@ async function exportImage() {
 
 /* ---------------- 提示条 ---------------- */
 
-function toast(msg) {
+function toast(msg, ms) {
   els.toast.textContent = msg;
   els.toast.classList.add('show');
   clearTimeout(toast._timer);
-  toast._timer = setTimeout(() => els.toast.classList.remove('show'), 3200);
+  toast._timer = setTimeout(() => els.toast.classList.remove('show'), ms || 3200);
+}
+
+/* ---------------- 样式 / 脚本版本校验 ---------------- */
+
+/** 与 styles/app.css 的 --app-build 保持一致，改版时两边一起加一 */
+const BUILD = 6;
+
+/**
+ * 纯静态站点没有构建哈希，浏览器可能只缓存了其中一部分文件，
+ * 于是出现「新样式配旧脚本」这种很难自己看明白的错位。
+ * 这里对一下版本号，不一致就直接让用户强制刷新。
+ */
+function checkBuild() {
+  const cssBuild = getComputedStyle(document.documentElement)
+    .getPropertyValue('--app-build').trim();
+  if (cssBuild !== String(BUILD)) {
+    toast(t('toast.staleAssets', { js: BUILD, css: cssBuild || '—' }), 12000);
+  }
 }
 
 /* ---------------- 画布交互 ---------------- */
@@ -695,6 +713,7 @@ async function boot() {
   select(null);
   applyNow({ outline: true, inspector: true });
   setSaveStatus('', '');
+  checkBuild();
 
   if (loaded && loaded.migrated) {
     // 旧版存档已原样迁移过来
